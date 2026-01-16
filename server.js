@@ -1,7 +1,18 @@
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import express from 'express';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
-const httpServer = createServer();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const app = express();
+const httpServer = createServer(app);
+
+// Serve static files from the dist directory (Vite build output)
+app.use(express.static(join(__dirname, 'dist')));
+
 const io = new Server(httpServer, {
     cors: {
         origin: "*", // Allow all origins for local network access
@@ -68,7 +79,12 @@ io.on('connection', (socket) => {
     });
 });
 
-const PORT = 3001;
+// Serve index.html for all routes (SPA support)
+app.get('*', (req, res) => {
+    res.sendFile(join(__dirname, 'dist', 'index.html'));
+});
+
+const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, '0.0.0.0', () => {
-    console.log(`Socket.io server running on port ${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });
