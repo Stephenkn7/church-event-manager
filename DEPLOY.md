@@ -1,67 +1,151 @@
-# Deployment Guide
+# 🚀 Guide de Déploiement sur Render
 
-Church Event Manager is a web application with a real-time backend. To use it with other devices (like tablets or phones) in the same building, you need to "deploy" it on your local network.
+## ✅ Préparation Terminée
 
-## Option 1: Local Network (Recommended for Church)
+Votre code est prêt pour le déploiement ! Les modifications suivantes ont été apportées :
 
-You can run the application on one computer (the "Host") and access it from other devices via Wi-Fi.
-
-### 1. Find your IP Address
-On the computer running the app:
-- **Mac**: Open System Settings -> Network -> Wi-Fi -> Details. Look for **IP Address** (e.g., `192.168.1.50`).
-- **Windows**: Open Command Prompt, type `ipconfig`, and look for `IPv4 Address`.
-
-### 2. Start the Application
-Open your terminal and navigate to the project folder first:
-
-```bash
-cd "/Users/stephen/Desktop/DEKSTOP FILES/STEPHEN/APPLICATION /TEST CULTE APP"
-npm run dev
-```
-
-Check the output for the "Network" URL:
-```
-  ➜  Local:   http://localhost:5173/
-  ➜  Network: http://192.168.1.50:5173/   <-- This is the link!
-```
-
-### 3. Connect Other Devices
-- Connect your Tablet/Phone to the **SAME Wi-Fi network** as the computer.
-- Open the browser on the tablet (Safari/Chrome).
-- Type the **Network URL** (e.g., `http://192.168.1.50:5173`).
-
-### 4. Enable Tablet Mode
-- On the tablet, tap the **"Mode PC"** button in the top right.
-- Confirm to switch to **"Mode Tablette"**.
-- The computer should now show **"Tablette Connectée"**.
+- ✅ Serveur configuré pour utiliser le port de Render (`process.env.PORT`)
+- ✅ Express.js ajouté pour servir les fichiers statiques
+- ✅ Script `start` ajouté pour la production
+- ✅ Code poussé sur GitHub
 
 ---
 
-## Option 2: Cloud Deployment (Advanced)
+## 📋 Étapes de Déploiement
 
-If you need to access the app from anywhere (outside the church Wi-Fi), you must host it on a server.
-**Note**: Simple hosting like Vercel/Netlify will **NOT** work for the real-time features because this app uses a custom WebSocket server (`server.js`).
+### 1️⃣ Créer un Compte Render
 
-### Recommended Services
-- **Railway** (https://railway.app)
-- **Render** (https://render.com)
+1. Allez sur **https://render.com**
+2. Cliquez sur **"Get Started for Free"**
+3. Connectez-vous avec votre compte **GitHub** (recommandé)
+4. Autorisez Render à accéder à vos dépôts
 
-### Steps for Railway/Render:
-1. Push your code to GitHub.
-2. Link your GitHub repository to the service.
-3. Set the **Build Command**: `npm install && npm run build`
-4. Set the **Start Command**: `node server.js`
-   - *Note: You may need to modify `server.js` to serve the `dist` folder files for production usage.*
+### 2️⃣ Créer un Nouveau Web Service
 
-## Production Setup (Optimized for Local Network)
-To run in a more stable "production" mode locally:
+1. Sur le tableau de bord Render, cliquez sur **"New +"** (en haut à droite)
+2. Sélectionnez **"Web Service"**
+3. Connectez votre dépôt GitHub :
+   - Si c'est la première fois, cliquez sur **"Configure account"**
+   - Autorisez l'accès au dépôt `church-event-manager`
+   - Sélectionnez le dépôt **`Stephenkn7/church-event-manager`**
 
-1. **Build the app**:
-   ```bash
-   npm run build
-   ```
+### 3️⃣ Configurer le Service
 
-2. **Serve it**:
-   (You need to modify `server.js` to serve static files from `dist` folder, or use `vite preview`).
-   
-   For now, `npm run dev` is perfectly fine for local usage!
+Remplissez les champs suivants :
+
+| Champ | Valeur |
+|-------|--------|
+| **Name** | `church-event-manager` (ou votre choix) |
+| **Region** | `Frankfurt (EU Central)` (le plus proche de vous) |
+| **Branch** | `main` |
+| **Root Directory** | *(laisser vide)* |
+| **Runtime** | `Node` |
+| **Build Command** | `npm install && npm run build` |
+| **Start Command** | `npm start` |
+
+### 4️⃣ Choisir le Plan Gratuit
+
+1. Descendez jusqu'à la section **"Instance Type"**
+2. Sélectionnez **"Free"** (0$/mois)
+3. Lisez les limitations :
+   - ⚠️ L'application s'endort après 15 min d'inactivité
+   - ⏱️ Redémarre en ~30 secondes au prochain accès
+   - 💾 750 heures/mois gratuites
+
+### 5️⃣ Créer le Service
+
+1. Cliquez sur **"Create Web Service"** (en bas de la page)
+2. Attendez le déploiement (environ **5-10 minutes**)
+3. Vous verrez les logs de build en temps réel
+
+---
+
+## 📊 Suivi du Déploiement
+
+Pendant le déploiement, vous verrez :
+
+```
+==> Installing dependencies...
+==> Building application...
+==> Starting server...
+✅ Server running on port 10000
+```
+
+Une fois terminé, vous verrez :
+- ✅ **"Live"** en vert en haut de la page
+- 🔗 Votre URL de déploiement : `https://church-event-manager.onrender.com`
+
+---
+
+## 🧪 Vérification Post-Déploiement
+
+### Tests à Effectuer
+
+1. **Accès à l'application**
+   - Cliquez sur l'URL fournie par Render
+   - Vérifiez que la page d'accueil s'affiche
+
+2. **Navigation**
+   - Testez tous les liens : Home, Builder, Templates, Members, Activities, Stats
+   - Vérifiez qu'il n'y a pas d'erreurs 404
+
+3. **WebSocket (Console)**
+   - Ouvrez la console du navigateur (F12)
+   - Cherchez : `"Client connected"` ou messages de connexion Socket.io
+   - Vérifiez qu'il n'y a pas d'erreurs de connexion
+
+4. **Fonctionnalités**
+   - Créez un membre
+   - Créez un modèle de service
+   - Rafraîchissez la page → les données doivent persister (localStorage)
+
+---
+
+## ⚠️ Problèmes Courants
+
+### Erreur : "Build failed"
+
+**Solution** : Vérifiez les logs de build. Souvent causé par :
+- Dépendances manquantes
+- Erreurs de syntaxe
+
+### Erreur : "Application failed to start"
+
+**Solution** : Vérifiez que :
+- Le script `start` est bien `node server.js`
+- Le fichier `dist/` existe après le build
+
+### WebSocket ne se connecte pas
+
+**Solution** : Vérifiez dans `SocketContext.jsx` que l'URL du serveur est correcte :
+```javascript
+const socket = io(); // Utilise automatiquement l'URL actuelle
+```
+
+---
+
+## 🎉 Prochaines Étapes
+
+Une fois déployé avec succès :
+
+1. **Testez l'application** avec plusieurs appareils
+2. **Partagez l'URL** avec votre équipe
+3. **Configurez un nom de domaine personnalisé** (optionnel, gratuit sur Render)
+
+---
+
+## 📝 Informations Importantes
+
+- **URL de votre application** : Sera fournie après le déploiement
+- **Redémarrage automatique** : À chaque push sur GitHub, Render redéploie automatiquement
+- **Logs** : Accessibles depuis le tableau de bord Render
+- **Mise en veille** : Après 15 min d'inactivité (plan gratuit)
+
+---
+
+## 🆘 Besoin d'Aide ?
+
+Si vous rencontrez des problèmes :
+1. Consultez les logs dans Render
+2. Vérifiez que le code est bien poussé sur GitHub
+3. Assurez-vous que les commandes de build fonctionnent localement

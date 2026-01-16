@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { supabase } from '../lib/supabase';
 
 const ServiceContext = createContext();
 
@@ -7,13 +8,16 @@ const initialState = {
     services: [],
     currentService: null,
     templates: [], // Component templates (Part library)
-    serviceTemplates: [] // Full Service Templates (Modèles de Service)
+    serviceTemplates: [], // Full Service Templates (Modèles de Service)
+    loading: true
 };
 
 const serviceReducer = (state, action) => {
     switch (action.type) {
+        case 'SET_LOADING':
+            return { ...state, loading: action.payload };
         case 'LOAD_SERVICES':
-            return { ...state, services: action.payload };
+            return { ...state, services: action.payload, loading: false };
         case 'SET_CURRENT_SERVICE':
             return { ...state, currentService: action.payload };
         case 'CREATE_SERVICE':
@@ -64,134 +68,216 @@ const serviceReducer = (state, action) => {
 export const ServiceProvider = ({ children }) => {
     const [state, dispatch] = useReducer(serviceReducer, initialState);
 
-    // Load from localStorage on mount
+    // Load from Supabase on mount
     useEffect(() => {
-        const saved = localStorage.getItem('churchflow_services');
-        if (saved) {
-            dispatch({ type: 'LOAD_SERVICES', payload: JSON.parse(saved) });
-        } else {
-            // Init with the user's template if no data exists
-            const initialService = {
-                id: uuidv4(),
-                theme: "LÈVE TOI ET BRILLE",
-                date: "2026-01-11",
-                date: "2026-01-11",
-                startTime: "07:00",
-                parts: [
-                    { id: 1, name: 'Pre-Culte (Prière des Serviteurs)', leader: 'Dirigeant', duration: 30 },
-                    { id: 2, name: 'Brief Avant Culte (Com, Event, Formation...)', leader: 'Staff', duration: 10 },
-                    { id: 3, name: 'Balance et Dernier Réglage', leader: 'Technique / Louange', duration: 35 },
-                    { id: 4, name: "Entrée de l'Auditoire", leader: 'Accueil', duration: 10 },
-                    { id: 5, name: 'Modérateur Culte', leader: 'Daniel Zamblé', duration: 10 },
-                    { id: 6, name: 'Louange et Adoration', leader: 'Stéphanie Talloh', duration: 45 },
-                    { id: 7, name: 'Sainte Cène', leader: 'Past Blandine', duration: 10 },
-                    { id: 8, name: 'Dîmes et Offrandes', leader: 'Ange Nahi', duration: 10 },
-                    { id: 9, name: 'Annonces', leader: 'Syntyche Yangra', duration: 10 },
-                    { id: 10, name: 'Instant de Tribus et FDV', leader: 'Tribu Juda', duration: 10 },
-                    { id: 11, name: 'Message et Ministère', leader: 'Pasteur Oyoua Bertrand', duration: 60 },
-                    { id: 12, name: 'Dernière Annonce et Présentation', leader: 'Syntyche Yangra', duration: 5 },
-                    { id: 13, name: 'Prière de Fin et Renvoie', leader: 'Modérateur', duration: 5 },
-                    { id: 14, name: "Tribus et Repas d'Amour", leader: 'Toutes les tribus', duration: 30 },
-                    { id: 15, name: 'Debrief Culte', leader: 'Staff', duration: 10 },
-                    { id: 16, name: 'Installation', leader: 'Logistique', duration: 10 },
-                    { id: 17, name: 'Formation', leader: 'Formateurs', duration: 60 },
-                ],
-                status: 'draft',
-                createdAt: new Date().toISOString()
-            };
-            dispatch({ type: 'CREATE_SERVICE', payload: initialService });
-        }
+        loadServices();
+        loadTemplates();
+        loadServiceTemplates();
 
-        // Load templates
-        const savedTemplates = localStorage.getItem('churchflow_templates');
-        if (savedTemplates) {
-            dispatch({ type: 'LOAD_TEMPLATES', payload: JSON.parse(savedTemplates) });
-        } else {
-            // Default templates
-            const defaultTemplates = [
-                { id: uuidv4(), name: 'Louange', leader: 'Groupe de Louange', duration: 20 },
-                { id: uuidv4(), name: 'Adoration', leader: 'Groupe de Louange', duration: 15 },
-                { id: uuidv4(), name: 'Message', leader: 'Prédicateur', duration: 45 },
-                { id: uuidv4(), name: 'Annonces', leader: 'Secrétariat', duration: 5 },
-            ];
-            dispatch({ type: 'LOAD_TEMPLATES', payload: defaultTemplates });
-        }
-
-        // Load Service Templates
-        const savedServiceTemplates = localStorage.getItem('churchflow_service_templates');
-        if (savedServiceTemplates) {
-            dispatch({ type: 'LOAD_SERVICE_TEMPLATES', payload: JSON.parse(savedServiceTemplates) });
-        } else {
-            // Default service template based on the standard Sunday service
-            const defaultServiceTemplates = [
-                {
-                    id: uuidv4(),
-                    theme: 'Culte du Dimanche - LÈVE TOI ET BRILLE',
-                    parts: [
-                        { id: 1, name: 'PRE-CULTE (PRIERE DES SERVITEURS)', leader: 'Aquilas Yao', duration: 30 },
-                        { id: 2, name: 'BRIEF AVANT CULTE', leader: 'Pasteur Blandine Oyoua', duration: 10 },
-                        { id: 3, name: 'BALANCE ET DERNIER REGLAGE', leader: 'Équipe Technique', duration: 45 },
-                        { id: 4, name: 'DEBUT LOUANGE ET ADORATION', leader: 'Équipe Louange', duration: 0 },
-                        { id: 5, name: "ENTREE DE L'AUDITOIRE", leader: 'Équipe Accueil', duration: 10 },
-                        { id: 6, name: 'MODERATEUR CULTE', leader: 'Daniel Zamblé', duration: 10 },
-                        { id: 7, name: 'LOUANGE ET ADORATION', leader: 'Stéphanie Talloh', duration: 45 },
-                        { id: 8, name: 'SAINTE CENE', leader: 'Pasteur Blandine Oyoua', duration: 10 },
-                        { id: 9, name: 'DIMES ET OFFRANDES', leader: 'Ange Nahi', duration: 10 },
-                        { id: 10, name: 'ANNONCE', leader: 'Syntyche Yangra', duration: 10 },
-                        { id: 11, name: 'INSTANT DE TRIBUS ET FDV (TRIBU JUDA)', leader: 'Tribu Juda', duration: 10 },
-                        { id: 12, name: 'MESSAGE ET MINISTERE', leader: 'Pasteur Oyoua Bertrand', duration: 60 },
-                        { id: 13, name: 'DERNIERE ANNONCE ET PRESENTATION DES NOUVEAUX', leader: 'Syntyche Yangra', duration: 5 },
-                        { id: 14, name: 'PRIERE DE FIN ET RENVOIE', leader: 'Daniel Zamblé', duration: 5 },
-                        { id: 15, name: "TRIBUS ET REPAS D'AMOUR", leader: 'Toutes les Tribus', duration: 30 },
-                        { id: 16, name: 'DEBRIEF CULTE', leader: 'Équipe Dirigeante', duration: 10 },
-                        { id: 17, name: 'INSTALLATION', leader: 'Équipe Logistique', duration: 10 },
-                        { id: 18, name: 'FORMATION', leader: 'Formateurs', duration: 60 },
-                    ],
-                    createdAt: new Date().toISOString()
+        // Subscribe to realtime changes for services
+        const servicesSubscription = supabase
+            .channel('services_changes')
+            .on('postgres_changes',
+                { event: '*', schema: 'public', table: 'services' },
+                (payload) => {
+                    console.log('Service change received:', payload);
+                    if (payload.eventType === 'INSERT') {
+                        dispatch({ type: 'CREATE_SERVICE', payload: payload.new });
+                    } else if (payload.eventType === 'UPDATE') {
+                        dispatch({ type: 'UPDATE_SERVICE', payload: payload.new });
+                    } else if (payload.eventType === 'DELETE') {
+                        dispatch({ type: 'DELETE_SERVICE', payload: payload.old.id });
+                    }
                 }
-            ];
-            dispatch({ type: 'LOAD_SERVICE_TEMPLATES', payload: defaultServiceTemplates });
-        }
+            )
+            .subscribe();
+
+        // Subscribe to realtime changes for templates
+        const templatesSubscription = supabase
+            .channel('templates_changes')
+            .on('postgres_changes',
+                { event: '*', schema: 'public', table: 'templates' },
+                (payload) => {
+                    console.log('Template change received:', payload);
+                    if (payload.new?.type === 'component') {
+                        if (payload.eventType === 'INSERT') {
+                            dispatch({ type: 'ADD_TEMPLATE', payload: payload.new });
+                        } else if (payload.eventType === 'DELETE') {
+                            dispatch({ type: 'DELETE_TEMPLATE', payload: payload.old.id });
+                        }
+                    } else if (payload.new?.type === 'service' || payload.old?.type === 'service') {
+                        if (payload.eventType === 'INSERT') {
+                            dispatch({ type: 'ADD_SERVICE_TEMPLATE', payload: payload.new });
+                        } else if (payload.eventType === 'UPDATE') {
+                            dispatch({ type: 'UPDATE_SERVICE_TEMPLATE', payload: payload.new });
+                        } else if (payload.eventType === 'DELETE') {
+                            dispatch({ type: 'DELETE_SERVICE_TEMPLATE', payload: payload.old.id });
+                        }
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            servicesSubscription.unsubscribe();
+            templatesSubscription.unsubscribe();
+        };
     }, []);
 
-    // Save to localStorage whenever services change
-    useEffect(() => {
-        if (state.services.length > 0) {
-            localStorage.setItem('churchflow_services', JSON.stringify(state.services));
-        }
-    }, [state.services]);
+    const loadServices = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('services')
+                .select('*')
+                .order('created_at', { ascending: false });
 
-    // Save templates
-    useEffect(() => {
-        if (state.templates.length > 0) {
-            localStorage.setItem('churchflow_templates', JSON.stringify(state.templates));
+            if (error) throw error;
+            dispatch({ type: 'LOAD_SERVICES', payload: data || [] });
+        } catch (error) {
+            console.error('Error loading services:', error);
+            dispatch({ type: 'SET_LOADING', payload: false });
         }
-    }, [state.templates]);
+    };
 
-    // Save Service Templates
-    useEffect(() => {
-        if (state.serviceTemplates.length > 0) {
-            localStorage.setItem('churchflow_service_templates', JSON.stringify(state.serviceTemplates));
+    const loadTemplates = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('templates')
+                .select('*')
+                .eq('type', 'component')
+                .order('created_at', { ascending: true });
+
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                dispatch({ type: 'LOAD_TEMPLATES', payload: data });
+            } else {
+                // Seed default component templates
+                await seedComponentTemplates();
+            }
+        } catch (error) {
+            console.error('Error loading templates:', error);
         }
-    }, [state.serviceTemplates]);
+    };
 
-    const createNewService = (template = null) => {
+    const loadServiceTemplates = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('templates')
+                .select('*')
+                .eq('type', 'service')
+                .order('created_at', { ascending: true });
+
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                dispatch({ type: 'LOAD_SERVICE_TEMPLATES', payload: data });
+            } else {
+                // Seed default service template
+                await seedServiceTemplates();
+            }
+        } catch (error) {
+            console.error('Error loading service templates:', error);
+        }
+    };
+
+    const seedComponentTemplates = async () => {
+        const defaultTemplates = [
+            { id: uuidv4(), type: 'component', name: 'Louange', leader: 'Groupe de Louange', duration: 20 },
+            { id: uuidv4(), type: 'component', name: 'Adoration', leader: 'Groupe de Louange', duration: 15 },
+            { id: uuidv4(), type: 'component', name: 'Message', leader: 'Prédicateur', duration: 45 },
+            { id: uuidv4(), type: 'component', name: 'Annonces', leader: 'Secrétariat', duration: 5 },
+        ];
+
+        try {
+            const { data, error } = await supabase
+                .from('templates')
+                .insert(defaultTemplates)
+                .select();
+
+            if (error) throw error;
+            dispatch({ type: 'LOAD_TEMPLATES', payload: data });
+        } catch (error) {
+            console.error('Error seeding component templates:', error);
+        }
+    };
+
+    const seedServiceTemplates = async () => {
+        const defaultServiceTemplate = {
+            id: uuidv4(),
+            type: 'service',
+            theme: 'Culte du Dimanche - LÈVE TOI ET BRILLE',
+            parts: [
+                { id: 1, name: 'PRE-CULTE (PRIERE DES SERVITEURS)', leader: 'Aquilas Yao', duration: 30 },
+                { id: 2, name: 'BRIEF AVANT CULTE', leader: 'Pasteur Blandine Oyoua', duration: 10 },
+                { id: 3, name: 'BALANCE ET DERNIER REGLAGE', leader: 'Équipe Technique', duration: 45 },
+                { id: 4, name: 'DEBUT LOUANGE ET ADORATION', leader: 'Équipe Louange', duration: 0 },
+                { id: 5, name: "ENTREE DE L'AUDITOIRE", leader: 'Équipe Accueil', duration: 10 },
+                { id: 6, name: 'MODERATEUR CULTE', leader: 'Daniel Zamblé', duration: 10 },
+                { id: 7, name: 'LOUANGE ET ADORATION', leader: 'Stéphanie Talloh', duration: 45 },
+                { id: 8, name: 'SAINTE CENE', leader: 'Pasteur Blandine Oyoua', duration: 10 },
+                { id: 9, name: 'DIMES ET OFFRANDES', leader: 'Ange Nahi', duration: 10 },
+                { id: 10, name: 'ANNONCE', leader: 'Syntyche Yangra', duration: 10 },
+                { id: 11, name: 'INSTANT DE TRIBUS ET FDV (TRIBU JUDA)', leader: 'Tribu Juda', duration: 10 },
+                { id: 12, name: 'MESSAGE ET MINISTERE', leader: 'Pasteur Oyoua Bertrand', duration: 60 },
+                { id: 13, name: 'DERNIERE ANNONCE ET PRESENTATION DES NOUVEAUX', leader: 'Syntyche Yangra', duration: 5 },
+                { id: 14, name: 'PRIERE DE FIN ET RENVOIE', leader: 'Daniel Zamblé', duration: 5 },
+                { id: 15, name: "TRIBUS ET REPAS D'AMOUR", leader: 'Toutes les Tribus', duration: 30 },
+                { id: 16, name: 'DEBRIEF CULTE', leader: 'Équipe Dirigeante', duration: 10 },
+                { id: 17, name: 'INSTALLATION', leader: 'Équipe Logistique', duration: 10 },
+                { id: 18, name: 'FORMATION', leader: 'Formateurs', duration: 60 },
+            ]
+        };
+
+        try {
+            const { data, error } = await supabase
+                .from('templates')
+                .insert([defaultServiceTemplate])
+                .select();
+
+            if (error) throw error;
+            dispatch({ type: 'LOAD_SERVICE_TEMPLATES', payload: data });
+        } catch (error) {
+            console.error('Error seeding service templates:', error);
+        }
+    };
+
+    const createNewService = async (template = null) => {
         const newService = {
             id: uuidv4(),
             theme: template?.theme || "Nouvel Événement",
             date: new Date().toISOString().split('T')[0],
-            startTime: "09:00",
-            startTime: "09:00",
+            start_time: "09:00",
             parts: template?.parts || [],
-            status: 'draft',
-            createdAt: new Date().toISOString()
+            status: 'draft'
         };
-        dispatch({ type: 'CREATE_SERVICE', payload: newService });
-        return newService;
+
+        try {
+            const { data, error } = await supabase
+                .from('services')
+                .insert([newService])
+                .select()
+                .single();
+
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('Error creating service:', error);
+            return null;
+        }
     };
 
-    const updateService = (updatedService) => {
-        dispatch({ type: 'UPDATE_SERVICE', payload: updatedService });
+    const updateService = async (updatedService) => {
+        try {
+            const { error } = await supabase
+                .from('services')
+                .update(updatedService)
+                .eq('id', updatedService.id);
+
+            if (error) throw error;
+        } catch (error) {
+            console.error('Error updating service:', error);
+        }
     };
 
     const setCurrentService = (serviceId) => {
@@ -201,29 +287,97 @@ export const ServiceProvider = ({ children }) => {
         }
     };
 
-    const deleteService = (serviceId) => {
-        dispatch({ type: 'DELETE_SERVICE', payload: serviceId });
-    }
+    const deleteService = async (serviceId) => {
+        try {
+            const { error } = await supabase
+                .from('services')
+                .delete()
+                .eq('id', serviceId);
 
-    const addTemplate = (template) => {
-        dispatch({ type: 'ADD_TEMPLATE', payload: { ...template, id: uuidv4() } });
+            if (error) throw error;
+        } catch (error) {
+            console.error('Error deleting service:', error);
+        }
     };
 
-    const deleteTemplate = (id) => {
-        dispatch({ type: 'DELETE_TEMPLATE', payload: id });
+    const addTemplate = async (template) => {
+        const newTemplate = {
+            id: uuidv4(),
+            type: 'component',
+            ...template
+        };
+
+        try {
+            const { data, error } = await supabase
+                .from('templates')
+                .insert([newTemplate])
+                .select()
+                .single();
+
+            if (error) throw error;
+        } catch (error) {
+            console.error('Error adding template:', error);
+        }
+    };
+
+    const deleteTemplate = async (id) => {
+        try {
+            const { error } = await supabase
+                .from('templates')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+        } catch (error) {
+            console.error('Error deleting template:', error);
+        }
     };
 
     // Service Template Functions
-    const addServiceTemplate = (template) => {
-        dispatch({ type: 'ADD_SERVICE_TEMPLATE', payload: { ...template, id: uuidv4() } });
+    const addServiceTemplate = async (template) => {
+        const newTemplate = {
+            id: uuidv4(),
+            type: 'service',
+            ...template
+        };
+
+        try {
+            const { data, error } = await supabase
+                .from('templates')
+                .insert([newTemplate])
+                .select()
+                .single();
+
+            if (error) throw error;
+        } catch (error) {
+            console.error('Error adding service template:', error);
+        }
     };
 
-    const updateServiceTemplate = (template) => {
-        dispatch({ type: 'UPDATE_SERVICE_TEMPLATE', payload: template });
+    const updateServiceTemplate = async (template) => {
+        try {
+            const { error } = await supabase
+                .from('templates')
+                .update(template)
+                .eq('id', template.id);
+
+            if (error) throw error;
+        } catch (error) {
+            console.error('Error updating service template:', error);
+        }
     };
 
-    const deleteServiceTemplate = (id) => {
-        dispatch({ type: 'DELETE_SERVICE_TEMPLATE', payload: id });
+    const deleteServiceTemplate = async (id) => {
+        try {
+            const { error } = await supabase
+                .from('templates')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+        } catch (error) {
+            console.error('Error deleting service template:', error);
+        }
     };
 
     return (
